@@ -51,7 +51,7 @@ def generate_prompt(prompt_input: Union[str, List[str]],
 # ============================================================================
 
 def gpt_request(prompt: str, 
-                model: str = "gpt-4o", 
+                model: str = "gpt-3.5-turbo", 
                 max_tokens: int = 1500) -> str:
   """Make a request to OpenAI's GPT model."""
   if model == "o1-preview": 
@@ -66,14 +66,13 @@ def gpt_request(prompt: str,
       return f"GENERATION ERROR: {str(e)}"
 
   try:
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
       model=model,
       messages=[{"role": "user", "content": prompt}],
       max_tokens=max_tokens,
       temperature=0.7
     )
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]
   except Exception as e:
     return f"GENERATION ERROR: {str(e)}"
 
@@ -81,14 +80,13 @@ def gpt_request(prompt: str,
 def gpt4_vision(messages: List[dict], max_tokens: int = 1500) -> str:
   """Make a request to OpenAI's GPT-4 Vision model."""
   try:
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-      model="gpt-4o",
+    response = openai.ChatCompletion.create(
+      model="gpt-4o-mini",
       messages=messages,
       max_tokens=max_tokens,
       temperature=0.7
     )
-    return response.choices[0].message.content
+    return response["choices"][0]["message"]["content"]
   except Exception as e:
     return f"GENERATION ERROR: {str(e)}"
 
@@ -140,7 +138,18 @@ def chat_safe_generate(prompt_input: Union[str, List[str]],
       response = fail_safe
 
   if func_clean_up:
+    # ここで raw を表示しておくと確実に観察できる
+    #print("=== RAW RESPONSE ===")
+    #print(repr(response))
+    #print("=== END ===\n")
+
     response = func_clean_up(response, prompt=prompt)
+
+  # ◇◇ ここからデバッグ出力 ◇◇
+  #print("====== RAW GPT RESPONSE ======")
+  #print(repr(response))      # None/文字列/JSON を確認
+  #print("=============================\n")
+  # ◇◇ ここまで ◇◇
 
   if verbose or DEBUG:
     print_run_prompts(prompt_input, prompt, response)
@@ -153,21 +162,11 @@ def chat_safe_generate(prompt_input: Union[str, List[str]],
 # ============================================================================
 
 def get_text_embedding(text: str, 
-                       model: str = "text-embedding-3-small") -> List[float]:
+                       model: str = "text-embedding-ada-002") -> List[float]:
   """Generate an embedding for the given text using OpenAI's API."""
   if not isinstance(text, str) or not text.strip():
     raise ValueError("Input text must be a non-empty string.")
 
   text = text.replace("\n", " ").strip()
-  response = openai.embeddings.create(
-    input=[text], model=model).data[0].embedding
-  return response
-
-
-
-
-
-
-
-
-
+  resp = openai.Embedding.create(model=model, input=[text])
+  return resp["data"][0]["embedding"]
